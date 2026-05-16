@@ -13,7 +13,20 @@
   const LOG_KEY = "buoy.iridium.log.v1";
 
   /* ---------- Seed fleet ---------- */
-  const SEED = [];
+  const SEED = [
+    { id: "BY-001", name: "Atlas-1",     lat:  36.95, lng:  -8.20, status: "alive",   deployed: "2025-08-12" },
+    { id: "BY-002", name: "Atlas-2",     lat:  35.10, lng: -10.40, status: "alive",   deployed: "2025-08-12" },
+    { id: "BY-003", name: "Mistral-1",   lat:  41.40, lng:   3.20, status: "alive",   deployed: "2025-09-03" },
+    { id: "BY-004", name: "Mistral-2",   lat:  43.20, lng:   6.80, status: "warn",    deployed: "2025-09-03" },
+    { id: "BY-005", name: "Levant-A",    lat:  34.30, lng:  28.50, status: "alive",   deployed: "2025-10-21" },
+    { id: "BY-006", name: "Levant-B",    lat:  32.10, lng:  31.60, status: "error",   deployed: "2025-10-21" },
+    { id: "BY-007", name: "Pillar-1",    lat:  35.80, lng:  -5.90, status: "alive",   deployed: "2025-11-04" },
+    { id: "BY-008", name: "Sirocco-1",   lat:  37.50, lng:  14.10, status: "alive",   deployed: "2025-11-04" },
+    { id: "BY-009", name: "Adria-1",     lat:  43.80, lng:  14.20, status: "offline", deployed: "2025-06-30" },
+    { id: "BY-010", name: "Aegean-1",    lat:  38.10, lng:  24.60, status: "alive",   deployed: "2026-01-15" },
+    { id: "BY-011", name: "Aegean-2",    lat:  37.00, lng:  26.40, status: "deploy",  deployed: "2026-04-28" },
+    { id: "BY-012", name: "Tyrrhen-1",   lat:  39.80, lng:  12.30, status: "alive",   deployed: "2026-02-09" },
+  ];
 
   /* ---------- Helpers ---------- */
   const rand = (min, max) => min + Math.random() * (max - min);
@@ -254,193 +267,12 @@
     notify(); notifyLog();
   }
 
-  /* ----------------------------------------------------------------
-     Firebase integration
-     ----------------------------------------------------------------
-     If firebase_init.js has populated window.firebaseDB by the time
-     we are asked to start, listen to fleet/ and iridium_log/ in the
-     RTDB. Otherwise we silently fall back to the local simulator so
-     that the dashboard still works on GitHub Pages without keys.
-     ---------------------------------------------------------------- */
-
-  function _ingestMO(buoyId, reading) {
-    // Direct ingestion path (also used by the RTDB listener and by
-    // anyone replaying an MO packet without a round-trip to Firebase).
-    if (!buoyId || !reading) return;
-    let b = fleet.find(x => x.id === buoyId);
-    if (!b) {
-      b = {
-        id: buoyId,
-        name: buoyId,
-        lat: reading.lat ?? 0,
-        lng: reading.lng ?? 0,
-        status: "alive",
-        deployed: nowISO().slice(0, 10),
-        reading: { ...reading },
-        history: [],
-        telemetry: [],
-        last_contact: nowISO(),
-      };
-      fleet.push(b);
-    } else {
-      b.reading = { ...b.reading, ...reading };
-      b.last_contact = nowISO();
-      if (b.status === "offline") b.status = "alive";
-    }
-
-    const sample = {
-      t: Date.now(),
-      water_temp: round(b.reading.water_temp ?? 0, 2),
-      do_mgL:      round(b.reading.do_mgL      ?? 0, 2),
-      salinity:    round(b.reading.salinity    ?? 0, 2),
-      battery_pct: round(b.reading.battery_pct ?? 0, 1),
-      int_temp:    round(b.reading.int_temp    ?? 0, 1),
-      int_humidity:round(b.reading.int_humidity?? 0, 1),
-    };
-    b.history.push(sample);
-    if (b.history.length > 60) b.history.shift();
-
-    const payload = `MO|T=${sample.water_temp}|S=${sample.salinity}|BAT=${sample.battery_pct}%`;
-    b.telemetry.unshift({ t: Date.now(), dir: "rx", payload });
-    if (b.telemetry.length > 50) b.telemetry.length = 50;
-
-    pulseTx(b.id);
-  }
-
-  let firebaseUnsubFleet = null;
-  let firebaseUnsubLog   = null;
-
-  function _attachFirebaseListeners() {
-    const db       = window.firebaseDB;
-    const ref      = window.firebaseRef    || window.ref;
-    const onValue  = window.firebaseOnValue || window.onValue;
-    if (!db || !ref || !onValue) return false;
-
-    const fleetRef = ref(db, "fleet");
-    firebaseUnsubFleet = onValue(fleetRef, (snap) => {
-      const val = snap.val();
-      if (!val) return;
-
-      Object.entries(val).forEach(([id, raw]) => {
-        if (!raw || typeof raw !== "object") return;
-        const reading = raw.reading || {};
-        let b = fleet.find(x => x.id === id);
-        if (!b) {
-          b = {
-            id,
-            name: raw.name || id,
-            lat:  Number(raw.lat ?? 0),
-            lng:  Number(raw.lng ?? 0),
-            status:   raw.status   || "alive",
-            deployed: raw.deployed || nowISO().slice(0, 10),
-            reading:  { ...reading },
-            history:  [],
-            telemetry:[],
-            last_contact: raw.last_contact || nowISO(),
-          };
-          fleet.push(b);
-        } else {
-          b.name   = raw.name   ?? b.name;
-          b.lat    = Number(raw.lat ?? b.lat);
-          b.lng    = Number(raw.lng ?? b.lng);
-          b.status = raw.status ?? b.status;
-          b.deployed = raw.deployed ?? b.deployed;
-          b.last_contact = raw.last_contact || nowISO();
-          b.reading = { ...b.reading, ...reading };
-        }
-
-        const sample = {
-          t: Date.now(),
-          water_temp:  round(reading.water_temp  ?? b.reading.water_temp  ?? 0, 2),
-          do_mgL:      round(reading.do_mgL      ?? b.reading.do_mgL      ?? 0, 2),
-          salinity:    round(reading.salinity    ?? b.reading.salinity    ?? 0, 2),
-          battery_pct: round(reading.battery_pct ?? b.reading.battery_pct ?? 0, 1),
-          int_temp:    round(reading.int_temp    ?? b.reading.int_temp    ?? 0, 1),
-          int_humidity:round(reading.int_humidity?? b.reading.int_humidity?? 0, 1),
-        };
-        b.history.push(sample);
-        if (b.history.length > 60) b.history.shift();
-
-        const payload = raw.last_message ||
-          `MO|T=${sample.water_temp}|S=${sample.salinity}|BAT=${sample.battery_pct}%`;
-        b.telemetry.unshift({ t: Date.now(), dir: "rx", payload });
-        if (b.telemetry.length > 50) b.telemetry.length = 50;
-
-        pulseTx(id);
-      });
-
-      notify();
-    });
-
-    const logRef = ref(db, "iridium_log");
-    firebaseUnsubLog = onValue(logRef, (snap) => {
-      const val = snap.val();
-      if (!val) return;
-      const entries = Object.values(val)
-        .filter(e => e && typeof e === "object" && e.t)
-        .sort((a, b) => a.t - b.t);
-      // Replace the log with the authoritative view from RTDB.
-      log = entries;
-      notifyLog();
-    });
-
-    return true;
-  }
-
-  function startFirebase() {
-    // Already wired up?
-    if (firebaseUnsubFleet) return;
-
-    if (window.firebaseDB) {
-      const ok = _attachFirebaseListeners();
-      if (ok) {
-        console.log("[BuoyData] startFirebase → listening to RTDB");
-        return;
-      }
-    }
-
-    // Firebase may still be initialising as a module; wait briefly.
-    let attached = false;
-    const onReady = () => {
-      if (attached) return;
-      if (_attachFirebaseListeners()) {
-        attached = true;
-        console.log("[BuoyData] startFirebase → RTDB ready, listening");
-      }
-    };
-    window.addEventListener("firebase-ready", onReady, { once: true });
-
-    // Give the module a beat to load; if it never does, fall back to sim.
-    setTimeout(() => {
-      if (attached) return;
-      if (window.firebaseDB && _attachFirebaseListeners()) {
-        attached = true;
-        console.log("[BuoyData] startFirebase → RTDB ready (late), listening");
-      } else {
-        console.warn("[BuoyData] no Firebase available — falling back to simulator");
-        startSim();
-      }
-    }, 1500);
-  }
-
-  function stopFirebase() {
-    if (firebaseUnsubFleet) { firebaseUnsubFleet(); firebaseUnsubFleet = null; }
-    if (firebaseUnsubLog)   { firebaseUnsubLog();   firebaseUnsubLog   = null; }
-  }
-
   /* ---------- Public API ---------- */
   window.BuoyData = {
     getFleet: () => fleet,
     getLog: () => log,
     subscribe, subscribeLog, subscribeTx,
-    // startSim is replaced by startFirebase as the primary entry point,
-    // but we keep startSim exposed so it remains usable as an explicit
-    // fallback or for offline development.
-    startSim: startFirebase,
-    startSimLocal: startSim,
-    startFirebase, stopFirebase,
-    pauseSim, resumeSim, isPaused,
+    startSim, pauseSim, resumeSim, isPaused,
     setStatus, addBuoy, removeBuoy, sendCommand, resetFleet,
-    _ingestMO,
   };
 })();
