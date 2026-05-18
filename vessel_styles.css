@@ -1,0 +1,716 @@
+/* ================================================================
+   VESSEL CONNECT ADDITIONS — append to end of styles.css
+   Matches the existing dark theme exactly.
+   ================================================================ */
+
+/* ── Mode switcher in top bar ───────────────────────────────── */
+.mode-switcher {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-2);
+  border-radius: 6px;
+  padding: 3px;
+  margin: 0 12px;
+  flex-shrink: 0;
+}
+
+.mode-btn {
+  padding: 4px 14px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg-3);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--mono);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.mode-btn:hover {
+  color: var(--fg-1);
+  background: var(--bg-3);
+}
+
+.mode-btn.active {
+  background: var(--accent);
+  color: #07101a;
+  font-weight: 600;
+}
+
+/* ── Vessel panel container ─────────────────────────────────── */
+.vessel-panel {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-rows: 38px 1fr;
+  overflow: hidden;
+  background: var(--bg-1);
+}
+
+/* ── Vessel tab bar ─────────────────────────────────────────── */
+.vessel-tabbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.vessel-tabbar-left {
+  display: flex;
+  gap: 2px;
+}
+
+.vessel-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  color: var(--fg-3);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--mono);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.vessel-tab:hover {
+  color: var(--fg-1);
+  background: var(--bg-2);
+}
+
+.vessel-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.vessel-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: vessel-pulse 1s infinite;
+}
+
+@keyframes vessel-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ── Firebase status pill ───────────────────────────────────── */
+.vessel-fb-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: var(--bg-2);
+}
+
+.vessel-fb-pill.ok {
+  color: var(--accent);
+  background: rgba(77, 209, 197, 0.08);
+}
+
+.vessel-fb-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ── Vessel screen content ──────────────────────────────────── */
+.vessel-screen {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-0);
+}
+
+/* ── Discover screen layout ─────────────────────────────────── */
+.discover {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.radar-wrap {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-0);
+  border-right: 1px solid var(--border);
+  padding: 12px;
+  overflow: hidden;
+}
+
+.radar-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.radar-header .kvs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.radar-header .kv {
+  color: var(--fg-3);
+}
+
+.radar-header .kv b {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.radar-svg {
+  flex: 1;
+  width: 100%;
+  max-height: 100%;
+}
+
+.radar-foot {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-3);
+}
+
+/* ── Side panel in discover ─────────────────────────────────── */
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow-y: auto;
+  background: var(--bg-1);
+}
+
+.contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.contact-row:hover { background: var(--bg-3); }
+.contact-row.sel   { background: rgba(77,209,197,0.1); }
+.contact-row.offline { opacity: 0.5; }
+
+.contact-row .blip {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.contact-row.offline .blip { background: var(--fg-3); }
+
+.contact-row .name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-1);
+}
+
+.contact-row .meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-3);
+}
+
+.contact-row .rssi {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  text-align: right;
+}
+
+/* ── Configure screen ───────────────────────────────────────── */
+.cfg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.field label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+
+.input {
+  background: var(--bg-0);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--fg-1);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus { border-color: var(--accent); }
+
+.hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-3);
+}
+
+.row-3 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+/* ── Byte map ───────────────────────────────────────────────── */
+.bytemap-wrap {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.bytemap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.byte {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 32px;
+  padding: 4px 2px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg-2);
+  color: var(--fg-2);
+}
+
+.byte .idx {
+  font-size: 8px;
+  color: var(--fg-3);
+  margin-bottom: 2px;
+}
+
+.byte.cmd  { background: rgba(239,110,110,0.15); color: #ef6e6e; }
+.byte.ssid { background: rgba(77,209,197,0.12);  color: var(--accent); }
+.byte.pass { background: rgba(240,180,41,0.12);  color: #f0b429; }
+.byte.ip   { background: rgba(106,169,255,0.12); color: #6aa9ff; }
+.byte.port { background: rgba(160,130,255,0.12); color: #a082ff; }
+.byte.rsv  { background: var(--bg-2);            color: var(--fg-3); }
+
+.legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-2);
+}
+
+.sw {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.sw.cmd  { background: rgba(239,110,110,0.5); }
+.sw.ssid { background: rgba(77,209,197,0.5);  }
+.sw.pass { background: rgba(240,180,41,0.5);  }
+.sw.ip   { background: rgba(106,169,255,0.5); }
+.sw.port { background: rgba(160,130,255,0.5); }
+.sw.rsv  { background: var(--bg-3); }
+
+/* ── Command screen ─────────────────────────────────────────── */
+.cmd-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmd-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg-0);
+}
+
+.cmd-opt:hover { border-color: var(--accent); background: var(--bg-2); }
+.cmd-opt.sel   { border-color: var(--accent); background: rgba(77,209,197,0.08); }
+
+.cmd-opt .radio {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.15s;
+}
+
+.cmd-opt.sel .radio {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(77,209,197,0.2);
+}
+
+.cmd-opt .label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin-bottom: 3px;
+}
+
+.cmd-opt .sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-3);
+  line-height: 1.5;
+}
+
+.cmd-opt .code {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+/* ── Offload screen ─────────────────────────────────────────── */
+.offload {
+  display: grid;
+  grid-template-columns: 220px 1fr 180px;
+  height: 100%;
+  overflow: hidden;
+  gap: 0;
+}
+
+.timeline {
+  border-right: 1px solid var(--border);
+  padding: 14px;
+  overflow-y: auto;
+  background: var(--bg-1);
+}
+
+.tl-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+.tl-head h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-1);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tl-head .total {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-3);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 5px;
+  opacity: 0.4;
+  transition: all 0.2s;
+}
+
+.step.active {
+  opacity: 1;
+  background: rgba(77,209,197,0.08);
+  border-left: 2px solid var(--accent);
+}
+
+.step.done { opacity: 0.7; }
+
+.step .s-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.step .s-name {
+  font-size: 11px;
+  color: var(--fg-1);
+}
+
+.step .s-t {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--fg-3);
+}
+
+/* ── TCP stream log ─────────────────────────────────────────── */
+.stream {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--bg-0);
+}
+
+.stream-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.stream-head h3 {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg-2);
+  margin: 0;
+}
+
+.stream-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.stream-line {
+  display: grid;
+  grid-template-columns: 60px 60px 1fr;
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--fg-2);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.stream-line .t   { color: var(--fg-3); }
+.stream-line .tag { color: var(--accent); font-weight: 500; }
+.stream-line.good { color: var(--accent); }
+.stream-line.bad  { color: #ef6e6e; }
+
+.stream-foot {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-3);
+  flex-shrink: 0;
+}
+
+/* ── Metrics rail ───────────────────────────────────────────── */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  background: var(--bg-1);
+}
+
+.metric {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.m-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  margin-bottom: 4px;
+}
+
+.m-value {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--fg-1);
+  line-height: 1.1;
+}
+
+.m-value .u {
+  font-size: 12px;
+  color: var(--fg-3);
+  margin-left: 2px;
+}
+
+.m-sub {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--fg-3);
+  margin-top: 4px;
+}
+
+.bar-track {
+  height: 4px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  margin: 6px 0 4px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ── Shared panel / button styles ───────────────────────────── */
+.panel {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  background: var(--bg-2);
+}
+
+.panel-body {
+  padding: 12px;
+}
+
+.kv-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  font-size: 12px;
+}
+
+.kv-grid .k {
+  color: var(--fg-3);
+  font-family: var(--mono);
+  font-size: 10px;
+  white-space: nowrap;
+  align-self: center;
+}
+
+.kv-grid .v {
+  color: var(--fg-1);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.kv-grid .v.good { color: var(--accent); }
+.kv-grid .v.warn { color: #f0b429; }
+
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #07101a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-ui, var(--mono));
+  transition: all 0.15s;
+}
+
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn.ghost {
+  background: transparent;
+  color: var(--fg-2);
+  border: 1px solid var(--border);
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: var(--bg-3);
+  color: var(--fg-1);
+}
