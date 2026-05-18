@@ -97,6 +97,14 @@ def decode_packet(buf: bytes) -> dict:
 app = Flask(__name__)
 
 
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
+
+
 @app.post("/data")
 def ingest():
     if not request.is_json:
@@ -136,7 +144,9 @@ def ingest():
             "last_contact": now_iso,
             "last_message": last_message,
         })
-        buoy_ref.child("reading").set(reading)
+        # update() merges — preserves seeded fields the ESP32 doesn't send
+        # (e.g. heading, drift_kn) so the dashboard detail panel stays intact.
+        buoy_ref.child("reading").update(reading)
 
         db.reference("iridium_log").push({
             "t":    int(datetime.now(timezone.utc).timestamp() * 1000),

@@ -222,6 +222,7 @@ function App() {
   const [addMode, setAddMode] = useState(false);
   const [paused, setPaused] = useState(false);
   const [txCount, setTxCount] = useState(0);
+  const [mode, setMode] = useState("fleet");
 
   useEffect(() => {
     const u1 = BuoyData.subscribe(setFleet);
@@ -256,12 +257,18 @@ function App() {
   return (
     <div className="app">
       <TopBar fleet={fleet} txCount={txCount} log={log}
-        paused={paused} onTogglePause={onTogglePause} onReset={onReset} />
-      <Sidebar fleet={fleet} selectedId={selectedId} onSelect={setSelectedId}
-        onAdd={onAdd} />
-      <MapView fleet={fleet} selectedId={selectedId} onSelect={setSelectedId}
-        addMode={addMode} onAddAt={onAddAt} onCancelAdd={() => setAddMode(false)} />
-      {selected && (
+        paused={paused} onTogglePause={onTogglePause} onReset={onReset}
+        mode={mode} onModeChange={setMode} />
+      {mode === "fleet" && (
+        <>
+          <Sidebar fleet={fleet} selectedId={selectedId} onSelect={setSelectedId}
+            onAdd={onAdd} />
+          <MapView fleet={fleet} selectedId={selectedId} onSelect={setSelectedId}
+            addMode={addMode} onAddAt={onAddAt} onCancelAdd={() => setAddMode(false)} />
+        </>
+      )}
+      {mode === "connect" && window.LocalConnectApp && <window.LocalConnectApp fleet={fleet} log={log} />}
+      {mode === "fleet" && selected && (
         <DetailPanel
           buoy={selected}
           onClose={() => setSelectedId(null)}

@@ -16,8 +16,23 @@ function StatusBar({ status, onChange }) {
   );
 }
 
+// Coerce possibly-missing Firebase/hardware fields to a safe number so the
+// panel never crashes on .toFixed() when the ESP32 omits a sensor.
+const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+
 function OverviewTab({ buoy }) {
-  const r = buoy.reading;
+  const raw = buoy.reading || {};
+  const r = {
+    water_temp:   n(raw.water_temp),
+    do_mgL:       n(raw.do_mgL),
+    salinity:     n(raw.salinity),
+    battery_pct:  n(raw.battery_pct),
+    battery_v:    n(raw.battery_v),
+    int_temp:     n(raw.int_temp),
+    int_humidity: n(raw.int_humidity),
+    heading:      n(raw.heading),
+    drift_kn:     n(raw.drift_kn),
+  };
   const hist = buoy.history || [];
   const battColor = r.battery_pct < 20 ? "var(--st-error)"
     : r.battery_pct < 40 ? "var(--st-warn)" : "var(--st-alive)";

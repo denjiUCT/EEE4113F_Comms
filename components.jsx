@@ -49,7 +49,7 @@ function Sparkline({ data, color = "#4dd6e1", min, max }) {
 }
 
 /* ========= Top bar ========= */
-function TopBar({ fleet, txCount, log, paused, onTogglePause, onReset }) {
+function TopBar({ fleet, txCount, log, paused, onTogglePause, onReset, mode, onModeChange }) {
   const counts = useMemo(() => {
     const c = { alive: 0, warn: 0, error: 0, offline: 0, deploy: 0 };
     fleet.forEach(b => c[b.status]++);
@@ -65,6 +65,10 @@ function TopBar({ fleet, txCount, log, paused, onTogglePause, onReset }) {
         <div className="brand-name">Buoy Fleet <span>Iridium SBD ground station</span></div>
       </div>
       <div className="topbar-stats">
+        <div className="view-toggle" aria-label="View selector">
+          <button className={mode === "fleet" ? "active" : ""} onClick={() => onModeChange("fleet")}>Fleet</button>
+          <button className={mode === "connect" ? "active" : ""} onClick={() => onModeChange("connect")}>Local Connect</button>
+        </div>
         <div className="stat">FLEET <b>{fleet.length}</b></div>
         <div className="stat" style={{color:"#4ade80"}}>● ALIVE <b>{counts.alive}</b></div>
         <div className="stat" style={{color:"#f5b948"}}>● WARN <b>{counts.warn}</b></div>

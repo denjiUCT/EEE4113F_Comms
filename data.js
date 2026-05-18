@@ -14,18 +14,27 @@
 
   /* ---------- Seed fleet ---------- */
   const SEED = [
-    { id: "BY-001", name: "Atlas-1",     lat:  36.95, lng:  -8.20, status: "alive",   deployed: "2025-08-12" },
-    { id: "BY-002", name: "Atlas-2",     lat:  35.10, lng: -10.40, status: "alive",   deployed: "2025-08-12" },
-    { id: "BY-003", name: "Mistral-1",   lat:  41.40, lng:   3.20, status: "alive",   deployed: "2025-09-03" },
-    { id: "BY-004", name: "Mistral-2",   lat:  43.20, lng:   6.80, status: "warn",    deployed: "2025-09-03" },
-    { id: "BY-005", name: "Levant-A",    lat:  34.30, lng:  28.50, status: "alive",   deployed: "2025-10-21" },
-    { id: "BY-006", name: "Levant-B",    lat:  32.10, lng:  31.60, status: "error",   deployed: "2025-10-21" },
-    { id: "BY-007", name: "Pillar-1",    lat:  35.80, lng:  -5.90, status: "alive",   deployed: "2025-11-04" },
-    { id: "BY-008", name: "Sirocco-1",   lat:  37.50, lng:  14.10, status: "alive",   deployed: "2025-11-04" },
-    { id: "BY-009", name: "Adria-1",     lat:  43.80, lng:  14.20, status: "offline", deployed: "2025-06-30" },
-    { id: "BY-010", name: "Aegean-1",    lat:  38.10, lng:  24.60, status: "alive",   deployed: "2026-01-15" },
-    { id: "BY-011", name: "Aegean-2",    lat:  37.00, lng:  26.40, status: "deploy",  deployed: "2026-04-28" },
-    { id: "BY-012", name: "Tyrrhen-1",   lat:  39.80, lng:  12.30, status: "alive",   deployed: "2026-02-09" },
+    {
+      id: "BY-G17",
+      name: "Group17-Buoy",
+      lat: -33.9249,
+      lng: 18.4241,
+      status: "alive",
+      deployed: "2026-05-06",
+      last_contact: "2026-05-06T13:00:00Z",
+      last_message: "MO|T=23.5|S=35.2|BAT=87%",
+      reading: {
+        water_temp: 23.5,
+        salinity: 35.2,
+        do_mgL: 7.2,
+        battery_pct: 87,
+        battery_v: 12.8,
+        int_temp: 24.1,
+        int_humidity: 52.3,
+        heading: 0,
+        drift_kn: 0.1,
+      },
+    },
   ];
 
   /* ---------- Helpers ---------- */
@@ -82,13 +91,13 @@
       if (raw) return JSON.parse(raw);
     } catch (e) {}
     const fleet = SEED.map(b => {
-      const baseline = makeBaseline(b);
+      const baseline = b.reading || makeBaseline(b);
       return {
         ...b,
         reading: baseline,
         history: [],
         telemetry: [],
-        last_contact: nowISO(),
+        last_contact: b.last_contact || nowISO(),
       };
     });
     return fleet;
@@ -168,7 +177,7 @@
     pulseTx(b.id);
   }
 
-  function startSim() {
+  function startSimLocal() {
     if (timer) return;
     fleet.forEach(b => {
       if (b.history.length === 0 && b.status !== "deploy") {
@@ -201,6 +210,130 @@
         notifyLog();
       }
     }, 2200);
+  }
+
+  function normaliseFirebaseFleet(raw) {
+    if (!raw) return [];
+    return Object.entries(raw).map(([id, value]) => {
+      const existing = fleet.find(b => b.id === id) || {};
+      const reading = value.reading || existing.reading || makeBaseline(value);
+      return {
+        ...existing,
+        ...value,
+        id: value.id || id,
+        name: value.name || existing.name || id,
+        lat: Number(value.lat ?? existing.lat ?? -33.9249),
+        lng: Number(value.lng ?? existing.lng ?? 18.4241),
+        status: value.status || existing.status || "alive",
+        deployed: value.deployed || existing.deployed || "2026-05-06",
+        last_contact: value.last_contact || existing.last_contact || nowISO(),
+        reading,
+        history: existing.history || [],
+        telemetry: existing.telemetry || [],
+      };
+    });
+  }
+
+  function addReadingToBuoy(b, reading) {
+    const sample = {
+      t: Date.now(),
+      water_temp: round(Number(reading.water_temp ?? reading.temperature ?? 0), 2),
+      do_mgL: round(Number(reading.do_mgL ?? 0), 2),
+      salinity: round(Number(reading.salinity ?? reading.conductivity ?? 0), 2),
+      battery_pct: round(Number(reading.battery_pct ?? 0), 1),
+      int_temp: round(Number(reading.int_temp ?? 0), 1),
+      int_humidity: round(Number(reading.int_humidity ?? 0), 1),
+    };
+    b.history = b.history || [];
+    b.history.push(sample);
+    if (b.history.length > 60) b.history.shift();
+
+    const payload = `MO|T=${sample.water_temp}|DO=${sample.do_mgL}|S=${sample.salinity}|BAT=${sample.battery_pct}%`;
+    b.telemetry = b.telemetry || [];
+    b.telemetry.unshift({ t: Date.now(), dir: "rx", payload });
+    if (b.telemetry.length > 50) b.telemetry.length = 50;
+  }
+
+  function _ingestMO(buoyId, reading) {
+    let b = fleet.find(x => x.id === buoyId);
+    if (!b) {
+      b = {
+        id: buoyId,
+        name: buoyId,
+        lat: -33.9249,
+        lng: 18.4241,
+        status: "alive",
+        deployed: nowISO().slice(0, 10),
+        reading: makeBaseline({ lat: -33.9249, lng: 18.4241 }),
+        history: [],
+        telemetry: [],
+        last_contact: nowISO(),
+      };
+      fleet.push(b);
+    }
+    b.reading = { ...b.reading, ...reading };
+    b.last_contact = nowISO();
+    b.status = "alive";
+    addReadingToBuoy(b, b.reading);
+    log.push({
+      t: Date.now(),
+      buoy: buoyId,
+      kind: "rx",
+      msg: `${buoyId} → SBD/MO  T:${b.reading.water_temp}°C  S:${b.reading.salinity}  BAT:${b.reading.battery_pct}%`,
+    });
+    pulseTx(buoyId);
+    notify();
+    notifyLog();
+  }
+
+  let firebaseStarted = false;
+  function startFirebase() {
+    if (firebaseStarted || timer) return;
+    firebaseStarted = true;
+
+    const attach = () => {
+      if (timer) return;
+      if (!window.firebaseDB || !window.firebaseRef || !window.firebaseOnValue) {
+        startSimLocal();
+        return;
+      }
+
+      window.firebaseOnValue(window.firebaseRef(window.firebaseDB, "fleet"), snap => {
+        const incoming = normaliseFirebaseFleet(snap.val());
+        if (!incoming.length) return;
+        incoming.forEach(next => {
+          const prev = fleet.find(b => b.id === next.id);
+          const changedReading = prev && JSON.stringify(prev.reading) !== JSON.stringify(next.reading);
+          if (prev) Object.assign(prev, next);
+          else fleet.push(next);
+          if (!prev || changedReading) {
+            addReadingToBuoy(prev || next, next.reading || {});
+            pulseTx(next.id);
+          }
+        });
+        notify();
+      }, err => {
+        console.warn("[BuoyData] Firebase fleet listener failed, using simulation:", err);
+        startSimLocal();
+      });
+
+      window.firebaseOnValue(window.firebaseRef(window.firebaseDB, "iridium_log"), snap => {
+        const raw = snap.val() || {};
+        log = Object.values(raw)
+          .filter(item => item && item.msg)
+          .sort((a, b) => (a.t || 0) - (b.t || 0))
+          .slice(-200);
+        notifyLog();
+      });
+    };
+
+    if (window.firebaseDB) attach();
+    else {
+      window.addEventListener("firebase-ready", attach, { once: true });
+      setTimeout(() => {
+        if (!window.firebaseDB) startSimLocal();
+      }, 1500);
+    }
   }
 
   function pauseSim()  { paused = true; }
@@ -272,7 +405,8 @@
     getFleet: () => fleet,
     getLog: () => log,
     subscribe, subscribeLog, subscribeTx,
-    startSim, pauseSim, resumeSim, isPaused,
+    startSim: startFirebase, startFirebase, startSimLocal, pauseSim, resumeSim, isPaused,
     setStatus, addBuoy, removeBuoy, sendCommand, resetFleet,
+    _ingestMO,
   };
 })();
