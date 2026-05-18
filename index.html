@@ -3,309 +3,58 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Local Buoy Connect — Vessel Control Panel</title>
+<title>Buoy Fleet — Iridium Ground Station</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <link rel="stylesheet" href="styles.css" />
+<style>
+  body.hide-marker-labels .buoy-marker .label { display: none; }
+  body.hide-legend .map-legend { display: none; }
+  body.hide-console .iridium-console { display: none; }
+  .buoy-marker.tx-flash .core {
+    animation: txflash .4s ease-out;
+  }
+  @keyframes txflash {
+    0% { box-shadow: 0 0 0 0 #fff, 0 0 0 4px rgba(255,255,255,.6); }
+    100% { box-shadow: 0 0 0 0 transparent, 0 0 0 12px rgba(255,255,255,0); }
+  }
+</style>
 </head>
 <body>
 <div id="root"></div>
 
 <!-- React + Babel -->
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-<!-- ── Firebase (must load before everything else) ────────────── -->
-<script type="module">
-  import { initializeApp }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, onValue, push, set, update, remove, get }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<!-- Firebase (loads before data.js) -->
+<script type="module" src="firebase_init.js"></script>
 
-  const firebaseConfig = {
-    apiKey:            "AIzaSyBH4NR_dZCjNmEUiW_yovUp_9LXzBgSYfs",
-    authDomain:        "buoy-comms.firebaseapp.com",
-    databaseURL:       "https://buoy-comms-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId:         "buoy-comms",
-    storageBucket:     "buoy-comms.firebasestorage.app",
-    messagingSenderId: "185315760642",
-    appId:             "1:185315760642:web:c4e7a44e75f7ea002f651b"
-  };
+<!-- Data layer -->
+<script src="data.js"></script>
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getDatabase(app);
+<!-- Main dashboard scripts -->
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="detail.jsx"></script>
 
-  window.firebaseDB      = db;
-  window.firebaseRef     = ref;
-  window.firebaseOnValue = onValue;
-  window.firebasePush    = push;
-  window.firebaseSet     = set;
-  window.firebaseUpdate  = update;
-  window.firebaseRemove  = remove;
-  window.firebaseGet     = get;
-
-  console.log("[firebase] vessel panel connected to RTDB");
-  window.dispatchEvent(new CustomEvent("firebase:ready"));
-</script>
-
-<!-- ── Firebase command bridge ────────────────────────────────── -->
+<!-- Vessel Connect scripts (must load before app.jsx) -->
 <script src="firebase_commands.js"></script>
-
-<!-- ── UI components ──────────────────────────────────────────── -->
 <script type="text/babel" src="icons.jsx"></script>
 <script type="text/babel" src="radar.jsx"></script>
 <script type="text/babel" src="screens.jsx"></script>
 
-<!-- ── Main app ───────────────────────────────────────────────── -->
-<script type="text/babel">
-/* ================================================================
-   local_buoy_connect — main app
-   ================================================================ */
-const { useState, useEffect, useRef, useCallback } = React;
-
-/* ── Packet builder (mirrors nrf.h exactly) ─────────────────── */
-function buildPacket(cfg) {
-  const pkt = new Array(32).fill(0);
-  pkt[0] = (cfg.cmd || 0x01) & 0xFF;
-  const ssid = (cfg.ssid || "").slice(0, 12);
-  for (let i = 0; i < ssid.length; i++) pkt[1 + i] = ssid.charCodeAt(i);
-  const pass = (cfg.password || "").slice(0, 12);
-  for (let i = 0; i < pass.length; i++) pkt[13 + i] = pass.charCodeAt(i);
-  const ip = cfg.ip || [192, 168, 137, 1];
-  pkt[25] = ip[0]; pkt[26] = ip[1]; pkt[27] = ip[2]; pkt[28] = ip[3];
-  const port = cfg.port || 5555;
-  pkt[29] = (port >> 8) & 0xFF;
-  pkt[30] =  port       & 0xFF;
-  return pkt;
-}
-window.buildPacket = buildPacket;
-
-/* ── Demo contacts (shown until real contacts arrive from Firebase) */
-const DEMO_CONTACTS = [
-  {
-    id: "BY-G17", name: "Group17-Buoy",
-    mac: "B1:B2:B3:B4:B5", channel: 76,
-    online: true, rssi: -61, range: 0.38,
-    pending: 96, battery: 12.8,
-    pipe: "0xB1B2B3B4B5",
-    lastContact: "just now", deployment: "2026-05-06",
-    bearing: 45,
-  },
-];
-
-/* ── Tab definitions ────────────────────────────────────────── */
-const TABS = [
-  { id: "discover",  label: "Discover",  icon: "Radar" },
-  { id: "configure", label: "Configure", icon: "Plug"  },
-  { id: "command",   label: "Command",   icon: "Cmd"   },
-  { id: "offload",   label: "Offload",   icon: "Down"  },
-];
-
-/* ── App ────────────────────────────────────────────────────── */
-function App() {
-  const [tab,        setTab]        = useState("discover");
-  const [contacts,   setContacts]   = useState(DEMO_CONTACTS);
-  const [selectedId, setSelectedId] = useState("BY-G17");
-  const [sweeping,   setSweeping]   = useState(true);
-  const [command,    setCommand]    = useState(0x01);
-  const [txState,    setTxState]    = useState("idle");
-  const [cmdReady,   setCmdReady]   = useState(false);
-
-  const [config, setConfig] = useState({
-    ssid:     "OTSILBUOY",
-    password: "buoytest12345",
-    ip:       [192, 168, 137, 1],
-    port:     5555,
-  });
-
-  // Wait for BuoyCommands to be ready
-  useEffect(() => {
-    if (window.BuoyCommands) {
-      setCmdReady(true);
-    } else {
-      const handler = () => setCmdReady(true);
-      window.addEventListener("buoycommands:ready", handler);
-      return () => window.removeEventListener("buoycommands:ready", handler);
-    }
-  }, []);
-
-  // Subscribe to real contacts from Firebase
-  useEffect(() => {
-    if (!cmdReady) return;
-    const unsub = window.BuoyCommands.subscribeContacts((liveContacts) => {
-      if (liveContacts.length > 0) {
-        setContacts(liveContacts);
-      }
-      // else keep demo contacts so radar isn't empty
-    });
-    return unsub;
-  }, [cmdReady]);
-
-  // Subscribe to offload status to update txState
-  useEffect(() => {
-    if (!cmdReady) return;
-    const unsub = window.BuoyCommands.subscribeStatus((s) => {
-      if (!s || !s.state) return;
-      if (s.state === "tx_nrf")   setTxState("tx");
-      if (s.state === "nrf_ack")  setTxState("ack");
-      if (s.state === "nrf_fail") setTxState("fail");
-      if (s.state === "complete") setTxState("idle");
-      // Auto-advance to offload tab when streaming starts
-      if (s.state === "streaming" || s.state === "connected") {
-        setTab("offload");
-      }
-    });
-    return unsub;
-  }, [cmdReady]);
-
-  const handleFire = useCallback((cmdCode, cfg) => {
-    if (!cmdReady) {
-      alert("Firebase not connected — check firebase_commands.js loaded");
-      return;
-    }
-    setTxState("tx");
-    window.BuoyCommands.sendCommand(cfg, cmdCode);
-    // Auto-advance to offload tab
-    setTimeout(() => setTab("offload"), 800);
-  }, [cmdReady]);
-
-  const handleProceed = () => setTab("configure");
-
-  return (
-    <div className="window">
-      {/* Title bar */}
-      <div className="titlebar">
-        <div className="dots">
-          <span /><span /><span />
-        </div>
-        <div className="title">
-          Local Buoy Connect
-          <span style={{ color: "var(--ink-3)", marginLeft: 8, fontWeight: 400 }}>
-            · vessel control panel
-          </span>
-        </div>
-        <div className={`fb-status ${cmdReady ? "ok" : "wait"}`}>
-          {cmdReady ? "● Firebase" : "○ connecting…"}
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div className="tabbar">
-        {TABS.map(t => {
-          const IconComp = Icon[t.icon];
-          return (
-            <button key={t.id}
-              className={`tab ${tab === t.id ? "active" : ""}`}
-              onClick={() => setTab(t.id)}>
-              {IconComp && <IconComp />}
-              {t.label}
-              {t.id === "offload" && txState === "tx" && (
-                <span className="tab-pill">●</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Screen */}
-      <div className="screen">
-        {tab === "discover" && (
-          <DiscoverScreen
-            contacts={contacts}
-            selectedId={selectedId}
-            setSelectedId={setSelectedId}
-            sweeping={sweeping}
-            setSweeping={setSweeping}
-            onProceed={handleProceed}
-          />
-        )}
-        {tab === "configure" && (
-          <ConfigureScreen config={config} setConfig={setConfig} />
-        )}
-        {tab === "command" && (
-          <CommandScreen
-            config={config}
-            command={command}
-            setCommand={setCommand}
-            onFire={handleFire}
-            txState={txState}
-          />
-        )}
-        {tab === "offload" && (
-          <OffloadScreen />
-        )}
-      </div>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-</script>
-
-<style>
-/* ── extra styles not in styles.css ─────────────────────────── */
-.titlebar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 0 14px;
-  background: var(--bg-1);
-  border-bottom: 1px solid var(--line);
-  height: 38px; flex-shrink: 0;
-}
-.titlebar .dots { display: flex; gap: 6px; }
-.titlebar .dots span {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: var(--line-2);
-}
-.titlebar .title {
-  flex: 1; font-size: 13px; font-weight: 500;
-  color: var(--ink-1); text-align: center;
-}
-.fb-status {
-  font-family: var(--font-mono); font-size: 10px;
-  padding: 3px 8px; border-radius: 4px;
-}
-.fb-status.ok   { color: var(--good);  background: rgba(79,209,197,0.1); }
-.fb-status.wait { color: var(--ink-3); background: var(--bg-2); }
-
-.tabbar {
-  display: flex; gap: 2px;
-  padding: 8px 14px 0;
-  background: var(--bg-1);
-  border-bottom: 1px solid var(--line);
-}
-.tab {
-  display: flex; align-items: center; gap: 7px;
-  padding: 7px 14px; border-radius: 6px 6px 0 0;
-  border: none; background: transparent;
-  color: var(--ink-2); font-size: 13px; cursor: pointer;
-  font-family: var(--font-ui); font-weight: 500;
-  border-bottom: 2px solid transparent;
-  transition: all 0.15s;
-  position: relative;
-}
-.tab:hover { color: var(--ink-0); background: var(--bg-2); }
-.tab.active {
-  color: var(--accent); background: var(--bg-0);
-  border-bottom-color: var(--accent);
-}
-.tab-pill {
-  font-size: 8px; color: var(--warn);
-  animation: pulse 1s infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-.screen {
-  flex: 1; overflow: hidden;
-  display: flex; flex-direction: column;
-}
-.window {
-  display: grid;
-  grid-template-rows: 38px auto 1fr;
-}
-</style>
+<!-- App (must be last) -->
+<script type="text/babel" src="app.jsx"></script>
 </body>
 </html>
